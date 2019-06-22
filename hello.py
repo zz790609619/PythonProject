@@ -71,20 +71,23 @@ def print_others(msg):
                     reply = u'320324199608134190，7.5，18550857425'
             return reply
         else:
-            return get_response(message)  # 机器人自动聊天
+            if get_response(message) != '亲爱的，当天请求次数已用完。':
+                reply = get_response(message)  # 机器人自动聊天
+            else:
+                reply = '本机器人今天不开心跟你说话啦！'
+            return reply
     elif type == 'Picture':
         searchImg(msg.text)
         for img in imgs[:3]:
-            msg.user.send_image(img)
+            msg.reply_image(img)
             print('开始发送表情：', img)
             imgs.clear()
-        return reply
 
 
 def get_response(msg):
     apiUrl = 'http://www.tuling123.com/openapi/api'   #改成你自己的图灵机器人的api
     payload = {
-        'key': 'ce697b3fc8b54d5f88c2fa59772cb2cf',  # Tuling Key
+        'key': 'ce697b3fc8b54d5f88c2fa59772cb2cf',  # Tuling Key  7252fb8c7e4548929bf77aa3f89e90f2
         'info': msg,  # 这是我们收到的消息
         'userid': 'wechat-robot',  # 这里可随意修改
     }
@@ -157,7 +160,7 @@ imgs=[]
 
 def searchImg(keywords):
     print('keywords: %s' % keywords)
-    for name in glob.glob(current_path+'/Emotion/*'+keywords+'*.*'):
+    for name in glob.glob(current_path+'/斗图啦/*lay*.*'):
         imgs.append(name)
 
 
