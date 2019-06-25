@@ -3,9 +3,14 @@ from wxpy import *
 import requests
 import json
 import re
-import urllib.request
+import urllib.request  #urllib2
 import threading
 import glob
+import random
+import urllib
+import sys
+import ssl
+import base64
 import os
 from apscheduler.schedulers.blocking import BlockingScheduler
 bot = Bot(cache_path=True)
@@ -37,13 +42,14 @@ def send_news(info):
         my_friend.send(u"今天消息发送失败了")
 
 
-@bot.register()
+@bot.register(except_self=False)
 def print_others(msg):
     print(msg)
     message = msg.text
     type = msg.type
-    reply = u'嘿嘿'
+    reply = u''
     if type == 'Text':
+        # adidas微信公众号抽签
         if u'已结束' in message:
             reply = u"谢谢"
             return reply
@@ -51,43 +57,75 @@ def print_others(msg):
             cmdm = message.find('尺码代码')
             sfz = message.find('身份证')
             sjh = message.find('手机号')
+            sfzNum = '320324199608134190'
+            sjhNum = '18550857425'
+            cmdmNum = '7.5'
             if cmdm == -1:
                 if sfz < sjh:
-                    reply = u'320324199608134190，18550857425'
+                    reply = sfzNum+u'，'+sjhNum
                 else:
-                    reply = u'18550857425，320324199608134190'
+                    reply = sjhNum+u'，'+sfzNum
             else:
                 if cmdm < sfz < sjh:
-                    reply = u'7.5，320324199608134190，18550857425'
+                    reply = cmdmNum+u','+sfzNum+u'，'+sjhNum
                 elif cmdm < sjh < sfz:
-                    reply = u'7.5，18550857425，320324199608134190'
+                    reply = cmdmNum+u','+sjhNum+u'，'+sfzNum
                 elif sjh < cmdm < sfz:
-                    reply = u'18550857425，7.5，320324199608134190'
+                    reply = sjhNum+u','+cmdmNum+u'，'+sfzNum
                 elif sjh < sfz < cmdm:
-                    reply = u'18550857425，320324199608134190，7.5'
+                    reply = sjhNum+u','+sfzNum+u'，'+cmdmNum
                 elif sfz < sjh < cmdm:
-                    reply = u'320324199608134190，18550857425，7.5'
+                    reply = sfzNum+u'，'+sjhNum+u'，'+cmdmNum
                 elif sfz < cmdm < sjh:
-                    reply = u'320324199608134190，7.5，18550857425'
+                    reply = sfzNum+u'，'+cmdmNum+u'，'+sjhNum
             return reply
         else:
+            # 机器人自动陪聊
             if get_response(message) != '亲爱的，当天请求次数已用完。':
-                reply = get_response(message)  # 机器人自动聊天
+                reply = get_response(message)
             else:
-                reply = '本机器人今天不开心跟你说话啦！'
+                reply = ''
             return reply
     elif type == 'Picture':
-        searchImg(msg.text)
+        # 识别图中文字
+        # path = os.path.join('./图片验证/' + msg.file_name)
+        # msg.get_file(path)
+        # getMessageByImage(msg.file_name)
+        # 自动回复表情包
+        searchImg('')
+        i = random.randint(1, 50)
+        msg.reply_image(imgs[i])
+        imgs.clear()
         for img in imgs[:3]:
             msg.reply_image(img)
             print('开始发送表情：', img)
             imgs.clear()
+        return reply
+
+
+# 识别图片文字
+def getMessageByImage(imageName):
+    takonUrl = 'https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=s0IvNnpvHF2F89tdsw2Gcwtm&client_secret=jYQ1vsozTEmz9qfObtrsWA7WNTVvLZcs'
+    res = requests.get(takonUrl)
+    takon = res.json()['access_token']
+    url = 'https://aip.baidubce.com/rest/2.0/ocr/v1/general?access_token=' + takon
+    with open(current_path+'/图片验证/'+imageName, 'rb') as f:
+        data = base64.b64encode(f.read())
+    imageEncode = str(data, 'utf-8')
+    params = {"image": imageEncode}
+    headers = {
+        'Content-Type': 'application/x-www-form-urlencoded'
+    }
+    postdata = urllib.parse.urlencode(params).encode('utf-8')
+    request = urllib.request.Request(url=url, data=postdata, headers=headers)
+    res = urllib.request.urlopen(request)
+    page_source = res.read().decode('utf-8')
 
 
 def get_response(msg):
-    apiUrl = 'http://www.tuling123.com/openapi/api'   #改成你自己的图灵机器人的api
+    apiUrl = 'http://www.tuling123.com/openapi/api'   #图灵机器人的api
     payload = {
-        'key': 'ce697b3fc8b54d5f88c2fa59772cb2cf',  # Tuling Key  7252fb8c7e4548929bf77aa3f89e90f2
+        'key': 'ce697b3fc8b54d5f88c2fa59772cb2cf',  # api Key
         'info': msg,  # 这是我们收到的消息
         'userid': 'wechat-robot',  # 这里可随意修改
     }
@@ -129,7 +167,6 @@ def Downloader(step):
             # 设置保存路径
             imgname = a[1]
             imgname = re.sub('\/|\\\\|《|》|。|？|！|\.|\?|!|\*|&|#|(|)|(|)|（|）', '', imgname)
-
             imgtype = a[0].split('.')[-1]
             path = ('斗图啦/%s.%s' % (imgname, imgtype))
             print(path, a[0])
@@ -139,7 +176,7 @@ def Downloader(step):
 
 
 t_obj = []
-
+# 多线程爬取表情包
 for i in range(10):
     t = threading.Thread(target=Downloader, args=(i,))
     # t.start()
@@ -149,25 +186,20 @@ for t in t_obj:
     t.join()
 
 
-# 检索表情包
-for name in glob.glob('./Emotion/*你很*.*'):
-    print(name)
-
 current_path = os.getcwd()
-
 imgs=[]
 
-
+# 寻找图
 def searchImg(keywords):
     print('keywords: %s' % keywords)
-    for name in glob.glob(current_path+'/斗图啦/*lay*.*'):
+    for name in glob.glob(current_path+'/斗图啦/*'+keywords+'.*'):
         imgs.append(name)
 
 
 if __name__ == "__main__":
     scheduler = BlockingScheduler()
     # 间隔3秒钟执行一次
-    scheduler.add_job(func=send_news, trigger='interval', seconds=3600, args=['YEEZY苏州'])
+    scheduler.add_job(func=send_news, trigger='cron', hour='13', minute='0', second='0', args=['YEEZY苏州'])
     # 这里的调度任务是独立的一个线程
     try:
         scheduler.start()
